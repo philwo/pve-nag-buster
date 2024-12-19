@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # pve-nag-buster.sh (v04) https://github.com/foundObjects/pve-nag-buster
 # Copyright (C) 2019 /u/seaQueue (reddit.com/u/seaQueue)
@@ -19,15 +19,25 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-NAGTOKEN="data.status.toLowerCase() !== 'active'"
+set -euo pipefail
+
 NAGFILE="/usr/share/javascript/proxmox-widget-toolkit/proxmoxlib.js"
+SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 SCRIPT="$(basename "$0")"
 
 # disable license nag: https://johnscs.com/remove-proxmox51-subscription-notice/
 
-if grep -qs "$NAGTOKEN" "$NAGFILE" > /dev/null 2>&1; then
-  echo "$SCRIPT: Removing Nag ..."
-  sed -i.orig "s/$NAGTOKEN/false/g" "$NAGFILE"
+echo "$SCRIPT: Removing Nag ..."
+if ! out=$(patch -N -p0 -r - -d "$(dirname "${NAGFILE}")" -i "${SCRIPT_DIR}/${SCRIPT%.sh}.patch"); then
+  if [[ $out == *"Skipping patch"* ]]; then
+    echo "$SCRIPT: Patch was already applied."
+  else
+    echo "$SCRIPT: Patch failed!"
+    echo "$out"
+    exit 1
+  fi
+else
+  echo "$SCRIPT: Patch applied, restarting pveproxy.service ..."
   systemctl restart pveproxy.service
 fi
 

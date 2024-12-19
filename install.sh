@@ -31,18 +31,12 @@ _main() {
   { [ "$#" -eq "0" ] && set -- ""; } > /dev/null 2>&1
 
   case "$1" in
-    "--emit")
-      # call the emit_script() function to stdout and exit, use this to verify
-      # that the base64 encoded script below isn't doing anything malicious
-      # does not require root
-      emit_script
-      ;;
     "--uninstall")
       # uninstall, requires root
       assert_root
       _uninstall
       ;;
-    "--install" | "--offline" | "")
+    "--install" | "")
       # install dpkg hooks, requires root
       assert_root
       _install "$@"
@@ -61,6 +55,8 @@ _uninstall() {
     rm -f "/etc/apt/apt.conf.d/86pve-nags"
   [ -f "/usr/share/pve-nag-buster.sh" ] &&
     rm -f "/usr/share/pve-nag-buster.sh"
+  [ -f "/usr/share/pve-nag-buster.patch" ] &&
+    rm -f "/usr/share/pve-nag-buster.patch"
 
   echo "Script and dpkg hooks removed, please manually remove /etc/apt/sources.list.d/pve-no-subscription.list if desired"
 }
@@ -101,25 +97,9 @@ _install() {
 	EOF
 
   # install the hook script
-  temp=''
-  if [ "$1" = "--offline" ]; then
-    # packed script requested
-    temp="$(mktemp)" && trap "rm -f $temp" EXIT
-    emit_script > "$temp"
-  elif [ -f "pve-nag-buster.sh" ]; then
-    # local copy available
-    temp="pve-nag-buster.sh"
-  else
-    # fetch from github
-    echo "Fetching hook script from GitHub ..."
-    tempd="$(mktemp -d)" &&
-      trap "echo 'Cleaning up temporary files ...'; rm -f $tempd/*; rmdir $tempd" EXIT
-    temp="$tempd/pve-nag-buster.sh"
-    wget https://raw.githubusercontent.com/foundObjects/pve-nag-buster/master/pve-nag-buster.sh \
-      -q --show-progress -O "$temp"
-  fi
   echo "Installing hook script as /usr/share/pve-nag-buster.sh"
-  install -o root -m 0550 "$temp" "/usr/share/pve-nag-buster.sh"
+  install -o root -m 0550 "pve-nag-buster.sh" "/usr/share/pve-nag-buster.sh"
+  install -o root -m 0440 "pve-nag-buster.patch" "/usr/share/pve-nag-buster.patch"
 
   echo "Running patch script"
   /usr/share/pve-nag-buster.sh
@@ -127,41 +107,7 @@ _install() {
   return 0
 }
 
-# emit a stored copy of pve-nag-buster.sh offline -- this is intended to be used during
-# offline provisioning where we don't have access to github or a full cloned copy of the
-# project
-
-# run 'install.sh --emit' to dump stored script to stdout
-
-# Important: if you're not me you should probably decode this and read it to make sure I'm not doing
-#            something malicious like mining dogecoin or stealing your valuable cat pictures
-
-# pve-nag-buster.sh (v04) encoded below:
-
-emit_script() {
-  base64 -d << 'YEET' | unxz
-/Td6WFoAAATm1rRGAgAhARwAAAAQz1jM4AYGA5ZdABGIQkY99BY0cwoNj8U0dcgowbs41qLC+aej
-mGQYj9kDeUYQYXlWIuqhoJLO08e8hIe8MoGJqvcVxM5VQehFNPqq4OH1KhbHgYGz5QSdcYFBPv2D
-jY49io85pCEdBXRw6wLkkTOpm7NoQQs6ZJ5F+vtHWz70HmnRfNhHpjrb16GcK0ERg/VLAx58EUIU
-t9OVgypxnKVdJL7/XxL/nUYLT65sn6ZQvKn4HpuPvK5eKgjZfBYJ3Q0CPDeFlXWIew43sqJTwmlX
-drWBSOlU6yMbmhWTJvfLpK9UfBAh6Qwp6UJ6i0Hbwe+d8qKO/SQ1Ciz6qDbM/cLTIENPYvVjlqzV
-jDmBtzdGMfqXXuFbtNB1uIJVUd3o1rRgH0Pau7yYXZVjDxJ5a32NnSwbbxsYqvcDc5QARfe321vH
-ICPQMtds3p/nuCpmMNex8SorApU6X0jvw18w9uMIF7dE2tk0Ge58qiIOH/+V2uVZzAUAUpTa7Gb8
-0aKWiai6f4bMXfLwvUOiDOucGAW2mMzXClpI7m4jrBy+TjSjPSR1JvS2e9ppcVH2vwcXdUOxxybB
-aDCozlkd9DecONOygFJz7J+V323Oe/kocpUmrZjsQTv0kIveFoPKTTkVYX7JPhePK4FJ884pSafp
-D+KYD3iGv3QqUt0rJBFP1IHhCKsRBNAGgDEaWUUCpT7XVRgGnhXcbQYyegBik+zenQOK6VV/t61Y
-S4Jy/U332GBwLIFRjJotutij5xQmly2AnADFu5LauI9Ud8/JaR9A/AnY05eP8LbotD5oAZf973pI
-UJ5kAdMn+tgw4OP26QC35iaDK/EPWNOyz+1pjrfY/cybwBjwstmu4BaTdbNzb3im39wIX7wOcX8e
-NCixn7Q/gi9gDK+i0Ulfi5R20+QenkgNssOJ3kLfhuutsj5mYJ6wYeEE0mshgzDuXK2fW+ehHqtS
-SOTIUn3cTl74GhjX9tlotUaFGdt/yR/8N8TDzc9dRd7As9Eg4gKfP6pnZJnutTB7k7feponsA+3h
-Qbgm0NdjrxL93IdmB6cgJnMUm/A6GJTv5UynUDYwjZO82rUl3zkVGfu5nNKyEWN7K5gfRBi2l5oQ
-kckHNZJwTLt7Vta4OAfd5fraF37aRquLfrI0TGU+wHAqKpwoBpU3YOZ7o5//2CEVk7vrz5O4N6e4
-erl0B2a6XTQ2u/ICDkCLaA2q4FIbMtlCsNHjkKPV5xQO+/maKQAAABUX772XxF0fAAGyB4cMAABV
-zeNfscRn+wIAAAAABFla
-YEET
-}
-
 assert_root() { [ "$(id -u)" -eq '0' ] || { echo "This action requires root." && exit 1; }; }
-_usage() { echo "Usage: $(basename "$0") (--emit|--offline|--uninstall)"; }
+_usage() { echo "Usage: $(basename "$0") (--uninstall)"; }
 
 _main "$@"

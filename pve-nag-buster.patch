@@ -1,0 +1,21 @@
+--- proxmoxlib.js.orig	2024-12-19 08:48:07.904807811 +0900
++++ proxmoxlib.js	2024-12-19 08:52:17.586092464 +0900
+@@ -561,8 +561,7 @@
+ 		},
+ 		success: function(response, opts) {
+ 		    let res = response.result;
+-		    if (res === null || res === undefined || !res || res
+-			.data.status.toLowerCase() !== 'active') {
++		    if (false) {
+ 			Ext.Msg.show({
+ 			    title: gettext('No valid subscription'),
+ 			    icon: Ext.Msg.WARNING,
+@@ -19922,7 +19921,7 @@
+ 	    failure: (response, opts) => Ext.Msg.alert(gettext('Error'), response.htmlStatus),
+ 	    success: function(response, opts) {
+ 		const res = response.result;
+-		const subscription = !(!res || !res.data || res.data.status.toLowerCase() !== 'active');
++		const subscription = true;
+ 		vm.set('subscriptionActive', subscription);
+ 		me.getController().updateState();
+ 	    },
